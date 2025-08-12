@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>YouTube Thumbnail Downloader</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg: #0f172a; --card: #0b1220; --muted: #94a3b8; --text: #e2e8f0; --accent: #6366f1; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; background: radial-gradient(1200px 800px at 20% 0%, rgba(99,102,241,.15), transparent 60%), radial-gradient(1000px 600px at 100% 100%, rgba(16,185,129,.12), transparent 60%), var(--bg); color: var(--text); }
+    .wrap { min-height: 100dvh; display: grid; place-items: center; padding: 24px; }
+    .card { width: min(900px, 100%); background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02)); border: 1px solid rgba(148,163,184,.15); border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,.35); padding: 28px; backdrop-filter: blur(6px); }
+    h1 { margin: 0 0 4px; font-size: clamp(22px, 3vw, 28px); letter-spacing: .2px; }
+    .sub { color: var(--muted); font-size: 14px; margin-bottom: 18px; }
+
+    form { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
+    @media (max-width: 640px){ form { grid-template-columns: 1fr; } }
+
+    .input { width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(148,163,184,.25); background: rgba(2,6,23,.6); color: var(--text); outline: none; transition: border .15s, box-shadow .15s; }
+    .input::placeholder { color: #9aa6bd; }
+    .input:focus { border-color: rgba(99,102,241,.6); box-shadow: 0 0 0 4px rgba(99,102,241,.15); }
+
+    .btn { appearance: none; border: none; padding: 14px 18px; border-radius: 12px; background: linear-gradient(180deg, #7c82ff, #6366f1); color: white; font-weight: 600; letter-spacing: .2px; cursor: pointer; transition: transform .06s ease, filter .15s ease; }
+    .btn:hover { filter: brightness(1.05); }
+    .btn:active { transform: translateY(1px) scale(.995); }
+
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .hint { color: var(--muted); font-size: 12.5px; margin-top: 8px; }
+
+    .error { margin-top: 12px; color: #fecaca; background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.25); padding: 10px 12px; border-radius: 10px; display: none; }
+    .error.show { display: block; }
+
+    .result { margin-top: 22px; display: none; }
+    .result.show { display: block; }
+
+    .thumb-wrap { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid rgba(148,163,184,.2); background: #0a1020; }
+    .thumb { width: 100%; display: block; }
+
+    .meta { margin-top: 12px; display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; flex-wrap: wrap; }
+    .badge { padding: 6px 10px; border-radius: 999px; background: rgba(148,163,184,.12); border: 1px solid rgba(148,163,184,.2); color: var(--text); font-weight: 600; font-size: 12px; }
+
+    .downloads { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 10px; }
+    .dl { text-decoration: none; border: 1px solid rgba(148,163,184,.25); background: rgba(2,6,23,.6); color: var(--text); padding: 10px 12px; border-radius: 10px; font-weight: 600; transition: border .15s, transform .06s; }
+    .dl:hover { border-color: rgba(99,102,241,.6); }
+    .dl:active { transform: translateY(1px); }
+
+    footer { margin-top: 16px; color: var(--muted); font-size: 12px; text-align: center; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card" aria-labelledby="title">
+      <h1 id="title">YouTube Thumbnail Downloader</h1>
+      <p class="sub">Paste a YouTube link, hit <strong>Fetch</strong>, and download the thumbnail. No server required.</p>
+
+      <form id="thumbForm" novalidate>
+        <label class="sr-only" for="url">YouTube URL</label>
+        <input class="input" id="url" name="url" type="url" placeholder="e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ" autocomplete="off" required />
+        <button class="btn" id="fetchBtn" type="submit">Fetch</button>
+      </form>
+      <div class="hint">Tip: Works with <code>watch?v=</code>, <code>youtu.be/</code>, <code>shorts/</code>, and <code>embed/</code> links.</div>
+
+      <div id="error" class="error" role="alert" aria-live="polite"></div>
+
+      <div id="result" class="result" aria-live="polite">
+        <div class="thumb-wrap">
+          <img id="thumbImg" class="thumb" alt="Video thumbnail preview" />
+        </div>
+        <div class="meta">
+          <span class="badge" id="vidIdBadge" title="Video ID"></span>
+          <span id="resLabel">Resolution: —</span>
+        </div>
+        <div id="downloads" class="downloads"></div>
+        <footer>Thumbnails are served directly from YouTube's image CDN.</footer>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const form = document.getElementById('thumbForm');
+    const input = document.getElementById('url');
+    const errorBox = document.getElementById('error');
+    const result = document.getElementById('result');
+    const thumbImg = document.getElementById('thumbImg');
+    const resLabel = document.getElementById('resLabel');
+    const downloads = document.getElementById('downloads');
+    const vidIdBadge = document.getElementById('vidIdBadge');
+
+    // Extract YouTube video ID from various URL formats
+    function extractVideoId(url) {
+      try {
+        // Handle raw IDs
+        if (/^[a-zA-Z0-9_-]{11}$/.test(url)) return url;
+
+        const u = new URL(url);
+        const host = u.hostname.replace('www.', '');
+
+        if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'music.youtube.com') {
+          // watch?v=, short URLs like /shorts/ID, /embed/ID
+          if (u.searchParams.get('v')) return u.searchParams.get('v');
+          const parts = u.pathname.split('/').filter(Boolean);
+          if (parts[0] === 'shorts' && parts[1]) return parts[1];
+          if (parts[0] === 'embed' && parts[1]) return parts[1];
+        }
+
+        if (host === 'youtu.be') {
+          const id = u.pathname.split('/').filter(Boolean)[0];
+          if (id) return id;
+        }
+      } catch (e) {
+        // Not a URL; fall through
+      }
+      return null;
+    }
+
+    // Try loading an image URL and resolve with {ok, width, height}
+    function probeImage(src) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve({ ok: true, width: img.naturalWidth, height: img.naturalHeight, src });
+        img.onerror = () => resolve({ ok: false, src });
+        img.referrerPolicy = 'no-referrer';
+        img.src = src + (src.includes('?') ? '&' : '?') + 'cacheBust=' + Date.now();
+      });
+    }
+
+    async function fetchThumbnail(id) {
+      // Candidate thumbnails in preferred order
+      const base = `https://i.ytimg.com/vi/${id}`;
+      const candidates = [
+        { name: 'Max (1280x720+)', file: 'maxresdefault.jpg' },
+        { name: 'SD (640x480)', file: 'sddefault.jpg' },
+        { name: 'HQ (480x360)', file: 'hqdefault.jpg' },
+        { name: 'MQ (320x180)', file: 'mqdefault.jpg' },
+      ];
+
+      for (const c of candidates) {
+        const url = `${base}/${c.file}`;
+        const res = await probeImage(url);
+        if (res.ok) {
+          return { best: res, label: `${c.name} — ${res.width}×${res.height}`, id, base, available: candidates.map(x => `${base}/${x.file}`) };
+        }
+      }
+      return null;
+    }
+
+    function showError(msg){
+      errorBox.textContent = msg;
+      errorBox.classList.add('show');
+      result.classList.remove('show');
+    }
+    function clearError(){
+      errorBox.textContent = '';
+      errorBox.classList.remove('show');
+    }
+
+    function renderDownloads(id, base){
+      downloads.innerHTML = '';
+      const sizes = [
+        { label: 'Max', file: 'maxresdefault.jpg' },
+        { label: 'SD', file: 'sddefault.jpg' },
+        { label: 'HQ', file: 'hqdefault.jpg' },
+        { label: 'MQ', file: 'mqdefault.jpg' },
+      ];
+      sizes.forEach(s => {
+        const href = `${base}/${s.file}`;
+        const a = document.createElement('a');
+        a.href = href;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.download = `${id}_${s.file}`; // let browsers attempt a download
+        a.className = 'dl';
+        a.textContent = `Download ${s.label}`;
+        downloads.appendChild(a);
+      });
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearError();
+
+      const raw = input.value.trim();
+      const id = extractVideoId(raw);
+
+      if (!id) {
+        showError('Please paste a valid YouTube link or 11‑character video ID.');
+        return;
+      }
+
+      // Visual feedback on the button
+      const btn = document.getElementById('fetchBtn');
+      const prev = btn.textContent;
+      btn.textContent = 'Fetching…';
+      btn.disabled = true;
+
+      const data = await fetchThumbnail(id);
+
+      btn.textContent = prev;
+      btn.disabled = false;
+
+      if (!data) {
+        showError('Could not find a thumbnail for that video. Double‑check the link or try another.');
+        return;
+      }
+
+      // Render
+      vidIdBadge.textContent = id;
+      thumbImg.src = data.best.src;
+      thumbImg.alt = `Thumbnail for video ${id}`;
+      resLabel.textContent = `Resolution: ${data.label}`;
+      renderDownloads(id, data.base);
+
+      result.classList.add('show');
+
+      // Smooth scroll to result on mobile
+      result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    // Allow pressing Enter in the URL field to submit
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        form.requestSubmit();
+      }
+    });
+  </script>
+</body>
+</html>
