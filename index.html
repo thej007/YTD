@@ -132,20 +132,29 @@
       // Candidate thumbnails in preferred order
       const base = `https://i.ytimg.com/vi/${id}`;
       const candidates = [
-        { name: 'Max (1280x720+)', file: 'maxresdefault.jpg' },
-        { name: 'SD (640x480)', file: 'sddefault.jpg' },
-        { name: 'HQ (480x360)', file: 'hqdefault.jpg' },
-        { name: 'MQ (320x180)', file: 'mqdefault.jpg' },
+        { label: 'Max', name: 'Max (1280x720+)', file: 'maxresdefault.jpg' },
+        { label: 'SD', name: 'SD (640x480)', file: 'sddefault.jpg' },
+        { label: 'HQ', name: 'HQ (480x360)', file: 'hqdefault.jpg' },
+        { label: 'MQ', name: 'MQ (320x180)', file: 'mqdefault.jpg' },
       ];
+
+      let best = null;
+      const available = [];
 
       for (const c of candidates) {
         const url = `${base}/${c.file}`;
         const res = await probeImage(url);
         if (res.ok) {
-          return { best: res, label: `${c.name} — ${res.width}×${res.height}`, id, base, available: candidates.map(x => `${base}/${x.file}`) };
+          if (!best) {
+            best = { src: res.src, width: res.width, height: res.height, name: c.name };
+          }
+          available.push({ label: c.label, file: c.file });
         }
       }
-      return null;
+
+      if (!best) return null;
+
+      return { best, label: `${best.name} — ${best.width}×${best.height}`, id, base, available };
     }
 
     function showError(msg){
@@ -158,14 +167,8 @@
       errorBox.classList.remove('show');
     }
 
-    function renderDownloads(id, base){
+    function renderDownloads(id, base, sizes){
       downloads.innerHTML = '';
-      const sizes = [
-        { label: 'Max', file: 'maxresdefault.jpg' },
-        { label: 'SD', file: 'sddefault.jpg' },
-        { label: 'HQ', file: 'hqdefault.jpg' },
-        { label: 'MQ', file: 'mqdefault.jpg' },
-      ];
       sizes.forEach(s => {
         const href = `${base}/${s.file}`;
         const a = document.createElement('a');
@@ -212,7 +215,7 @@
       thumbImg.src = data.best.src;
       thumbImg.alt = `Thumbnail for video ${id}`;
       resLabel.textContent = `Resolution: ${data.label}`;
-      renderDownloads(id, data.base);
+      renderDownloads(id, data.base, data.available);
 
       result.classList.add('show');
 
